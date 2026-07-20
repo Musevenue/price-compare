@@ -66,16 +66,8 @@ def _detect_model():
         )
         return True, None
 
-    # 3) İçinde "llama" geçen ilk modeli otomatik seç.
-    chosen = next((m for m in models if "llama" in m.lower()), None)
-    # 4) llama yoksa mevcut ilk modele düş.
-    if not chosen:
-        chosen = models[0]
-        logger.warning(
-            "Ollama'da 'llama' içeren model yok; '%s' modeli kullanılacak. "
-            "Öneri: ollama pull llama3",
-            chosen,
-        )
+    # 3) Mevcut ilk modeli kullan (llama, qwen, mistral vs. hepsi geçerli).
+    chosen = models[0]
     logger.info("Ollama modeli: %s kullanılıyor", chosen)
     return True, chosen
 
