@@ -1,0 +1,21 @@
+# Facebook oturum çerezleri (gizli - paylaşmayın!)
+fb_cookies.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+
+# Playwright
+playwright-report/
+.cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.log

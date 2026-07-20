@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiyat Karşılaştırma</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="hero d-flex align-items-center">
+        <div class="container text-center">
+            <h1 class="display-4 fw-bold text-white mb-3">
+                <i class="bi bi-tags-fill"></i> Fiyat Karşılaştırma
+            </h1>
+            <p class="lead text-white-50 mb-4">
+                dba.dk, Facebook Marketplace ve Sahibinden.com ilanlarını tek yerde,
+                DKK cinsinden karşılaştırın. Her ilan için yapay zeka özeti.
+            </p>
+
+            {% if error %}
+            <div class="alert alert-warning w-75 mx-auto" role="alert">
+                <i class="bi bi-exclamation-triangle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="{{ url_for('search') }}" method="post" class="search-card mx-auto">
+                <div class="row g-2 align-items-center">
+                    <div class="col-12 col-md-7">
+                        <input type="text" name="query" class="form-control form-control-lg"
+                               placeholder="Ürün adı girin (örn. iPhone 13, bisiklet...)" required autofocus>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <select name="limit" class="form-select form-select-lg" title="Platform başına sonuç">
+                            <option value="5" selected>5 sonuç</option>
+                            <option value="10">10 sonuç</option>
+                            <option value="15">15 sonuç</option>
+                            <option value="20">20 sonuç</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-search"></i> Ara
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="platform-badges mt-4">
+                <span class="badge rounded-pill text-bg-light me-2"><i class="bi bi-shop"></i> dba.dk</span>
+                <span class="badge rounded-pill text-bg-light me-2"><i class="bi bi-facebook"></i> Facebook Marketplace</span>
+                <span class="badge rounded-pill text-bg-light"><i class="bi bi-basket"></i> Sahibinden.com</span>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted py-4">
+        <small>Yerel çalışan fiyat karşılaştırma aracı · Ollama (llama3) destekli</small>
+    </footer>
+</body>
+</html>

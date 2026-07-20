@@ -1,0 +1,1 @@
+"""Platform tarayıcıları (scrapers) paketi."""
