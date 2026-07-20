@@ -183,6 +183,53 @@ def _collect_from_item_links(page, limit):
     return listings
 
 
+def _collect_from_main_links(page, limit):
+    """Strateji B: [role='main'] içindeki marketplace linklerinden ilan topla.
+
+    /marketplace/item/ linkleri bulunamazsa daha geniş bir arama yapar.
+    """
+    listings = []
+    seen = set()
+    anchors = page.query_selector_all("[role='main'] a[href*='marketplace']")
+    for a in anchors:
+        if len(listings) >= limit:
+            break
+        href = a.get_attribute("href") or ""
+        if not href or "marketplace" not in href:
+            continue
+        if href.startswith("/"):
+            href = "https://www.facebook.com" + href
+        key = href.split("?")[0]
+        # Yalnızca ilan (item) linklerini al; kategori/menü linklerini ele.
+        if "/marketplace/item/" not in key:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+
+        text = _extract_text(a)
+        lines = text.split("\n")
+        title, price, currency = _pick_title_price(lines)
+        if not title:
+            title = (a.get_attribute("aria-label") or "").strip()
+        if not title:
+            continue
+
+        img_el = a.query_selector("img")
+        image = img_el.get_attribute("src") if img_el else ""
+        listings.append(
+            {
+                "title": title[:200],
+                "price": price,
+                "currency": currency,
+                "url": href,
+                "image": image or "",
+                "description": "",
+            }
+        )
+    return listings
+
+
 def _collect_from_aria_links(page, limit):
     """Strateji C: aria-label taşıyan link elementlerinden ilan topla."""
     listings = []
@@ -250,15 +297,14 @@ def scrape_facebook(query, limit=5):
 
     if not any(c.get("name") == "c_user" for c in cookies):
         logger.warning(
-            "FB çerezlerinde 'c_user' yok — oturum geçersiz görünüyor. "
-            "Lütfen `python fb_login.py` ile yeniden giriş yapın."
+            "Facebook oturumu geçersiz görünüyor. Tekrar fb_login.py çalıştırın."
         )
         return []
 
     listings = []
     search_url = (
         f"https://www.facebook.com/marketplace/{MARKETPLACE_LOCATION}/search/"
-        f"?query={query}"
+        f"?query={query}&exact=false"
     )
 
     with sync_playwright() as p:
@@ -325,15 +371,24 @@ def scrape_facebook(query, limit=5):
                     "İlan linkleri belirmedi; yine de mevcut içerik taranacak."
                 )
 
-            # Daha fazla sonuç yüklemek için kademeli scroll.
-            for _ in range(4):
+            # Daha fazla sonuç yüklemek için kademeli scroll (3 kez, 2 sn bekle).
+            for _ in range(3):
                 page.mouse.wheel(0, 2500)
-                page.wait_for_timeout(1800)
+                page.wait_for_timeout(2000)
 
             # Strateji A: /marketplace/item/ linkleri.
             listings = _collect_from_item_links(page, limit)
 
-            # Strateji C: yetersizse aria-label'lı linkler.
+            # Strateji B: yetersizse [role='main'] içindeki marketplace linkleri.
+            if len(listings) < limit:
+                extra = _collect_from_main_links(page, limit - len(listings))
+                seen_urls = {l["url"] for l in listings}
+                for item in extra:
+                    if item["url"] not in seen_urls:
+                        listings.append(item)
+                        seen_urls.add(item["url"])
+
+            # Strateji C: hâlâ yetersizse aria-label'lı linkler.
             if len(listings) < limit:
                 extra = _collect_from_aria_links(page, limit - len(listings))
                 seen_urls = {l["url"] for l in listings}

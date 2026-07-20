@@ -1,9 +1,11 @@
 """
-Ollama (llama3) istemcisi.
+Ollama istemcisi.
 
 Her ilan metni için kısa, Türkçe bir özet üretir. Ollama yerel olarak
-http://localhost:11434 adresinde çalışmalıdır. Ollama erişilemezse
-(kapalıysa, model yoksa vb.) hata fırlatmaz; boş string döndürür ki
+http://localhost:11434 adresinde çalışmalıdır. Model adı otomatik tespit
+edilir: OLLAMA_MODEL ortam değişkeni ayarlı değilse, /api/tags ile mevcut
+modeller listelenir ve içinde "llama" geçen ilk model seçilir. Ollama
+erişilemezse veya hiç model yoksa hata fırlatmaz; boş string döndürür ki
 uygulama akışı bozulmasın.
 """
 
@@ -15,7 +17,8 @@ import requests
 logger = logging.getLogger("price-compare.ollama")
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
+# Ayarlı değilse None; başlangıçta /api/tags ile otomatik seçilir.
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL")
 _REQUEST_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "60"))
 
 PROMPT_TEMPLATE = (
@@ -24,35 +27,77 @@ PROMPT_TEMPLATE = (
     "Yorum ekleme, sadece özet ver.\n\nİlan:\n{text}\n\nÖzet:"
 )
 
-# Ollama'nın erişilebilir olup olmadığını süreç boyunca bir kez kontrol et.
-_availability = {"checked": False, "ok": False}
+# Ollama durumunu ve seçilen modeli süreç boyunca bir kez belirle.
+_state = {"checked": False, "ok": False, "model": None}
 
 
-def _is_available():
-    if _availability["checked"]:
-        return _availability["ok"]
+def _detect_model():
+    """
+    Ollama'ya erişip kullanılacak modeli belirler.
+
+    Döndürür: (erişilebilir_mi: bool, model_adı: str|None)
+    """
     try:
         resp = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
-        _availability["ok"] = resp.status_code == 200
+        resp.raise_for_status()
     except requests.RequestException:
-        _availability["ok"] = False
-    _availability["checked"] = True
-    if not _availability["ok"]:
         logger.warning(
             "Ollama'ya (%s) erişilemedi. Özetler atlanacak. "
-            "Ollama'yı başlatmak için: `ollama serve` ve `ollama pull llama3`.",
+            "Ollama'yı başlatmak için: `ollama serve`.",
             OLLAMA_URL,
         )
-    return _availability["ok"]
+        return False, None
+
+    try:
+        data = resp.json()
+        models = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+    except (ValueError, AttributeError):
+        models = []
+
+    # 1) Ortam değişkeniyle model belirtilmişse onu kullan.
+    if OLLAMA_MODEL:
+        logger.info("Ollama modeli: %s kullanılıyor (OLLAMA_MODEL)", OLLAMA_MODEL)
+        return True, OLLAMA_MODEL
+
+    # 2) Hiç model yoksa uyar.
+    if not models:
+        logger.warning(
+            "Ollama'da hiç model bulunamadı. Terminalde: ollama pull llama3"
+        )
+        return True, None
+
+    # 3) İçinde "llama" geçen ilk modeli otomatik seç.
+    chosen = next((m for m in models if "llama" in m.lower()), None)
+    # 4) llama yoksa mevcut ilk modele düş.
+    if not chosen:
+        chosen = models[0]
+        logger.warning(
+            "Ollama'da 'llama' içeren model yok; '%s' modeli kullanılacak. "
+            "Öneri: ollama pull llama3",
+            chosen,
+        )
+    logger.info("Ollama modeli: %s kullanılıyor", chosen)
+    return True, chosen
+
+
+def _ensure_ready():
+    """Ollama erişimini ve model seçimini bir kez yapıp durumu döndürür."""
+    if not _state["checked"]:
+        ok, model = _detect_model()
+        _state["ok"] = ok
+        _state["model"] = model
+        _state["checked"] = True
+    # Kullanılabilir sayılması için hem erişim hem bir model gerekir.
+    return _state["ok"] and bool(_state["model"])
 
 
 def summarize_listing(text):
-    """İlan metni için Ollama llama3 ile kısa özet üretir."""
-    if not text or not _is_available():
+    """İlan metni için Ollama ile kısa özet üretir."""
+    if not text or not _ensure_ready():
         return ""
 
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": _state["model"],
         "prompt": PROMPT_TEMPLATE.format(text=text[:1500]),
         "stream": False,
         "options": {"temperature": 0.3, "num_predict": 120},
