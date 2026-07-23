@@ -27,7 +27,6 @@ if os.path.exists(_env_path):
 
 from scrapers.dba import scrape_dba
 from scrapers.facebook import scrape_facebook
-from scrapers.sahibinden import scrape_sahibinden
 from utils.currency import to_dkk
 from utils.filter import filter_listings, relevance_score
 from utils.ollama_client import analyze_image, summarize_listing, _ensure_ready, _state as ollama_state
@@ -45,7 +44,6 @@ app = Flask(__name__)
 PLATFORMS = {
     "dba.dk": scrape_dba,
     "Facebook Marketplace": scrape_facebook,
-    "Sahibinden.com": scrape_sahibinden,
 }
 
 # Kullanıcı limiti ne olursa olsun önce geniş örneklem çek.
