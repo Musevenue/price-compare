@@ -117,7 +117,7 @@
                                 {% endif %}
                             </div>
                             {% if item.summary %}
-                            <p class="card-text summary-text"><i class="bi bi-robot text-primary"></i> {{ item.summary }}</p>
+                            <p class="card-text summary-text"><i class="bi bi-robot text-primary"></i> <small class="text-muted">{{ ollama_model }}:</small> {{ item.summary }}</p>
                             {% endif %}
                             <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mt-auto">
                                 İlana Git <i class="bi bi-box-arrow-up-right"></i>

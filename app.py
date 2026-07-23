@@ -17,7 +17,7 @@ from scrapers.dba import scrape_dba
 from scrapers.facebook import scrape_facebook
 from scrapers.sahibinden import scrape_sahibinden
 from utils.currency import to_dkk
-from utils.ollama_client import summarize_listing
+from utils.ollama_client import summarize_listing, _state as ollama_state, _ensure_ready
 
 logging.basicConfig(
     level=logging.INFO,
@@ -139,12 +139,16 @@ def search():
         key=lambda c: (c["cheapest"] is None, c["cheapest"] if c["cheapest"] is not None else 0)
     )
 
+    _ensure_ready()
+    ollama_model = ollama_state.get("model") or "—"
+
     return render_template(
         "results.html",
         query=query,
         grouped=grouped,
         comparison=comparison,
         errors=errors,
+        ollama_model=ollama_model,
     )
 
 
