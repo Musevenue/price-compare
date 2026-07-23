@@ -149,4 +149,8 @@ def search():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+    app.run(host="0.0.0.0", port=args.port, debug=True)
