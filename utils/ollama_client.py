@@ -177,25 +177,22 @@ def analyze_image(image_url, title):
         resp = requests.post(
             f"{OLLAMA_URL}/api/generate", json=payload, timeout=_REQUEST_TIMEOUT
         )
-        # Multimodal destek yoksa genellikle 500 döner.
-        if resp.status_code >= 500:
+        # 400 veya 500: model multimodal desteklemiyor → kalıcı olarak kapat
+        if resp.status_code in (400, 422) or resp.status_code >= 500:
             _image_state["disabled"] = True
-            logger.warning(
-                "Ollama görsel analizi 500 hatası verdi; model multimodal "
-                "desteklemiyor olabilir. Görsel analiz devre dışı bırakıldı."
+            logger.info(
+                "Ollama görsel analizi desteklenmiyor (%s), devre dışı bırakıldı.",
+                resp.status_code,
             )
             return ""
         resp.raise_for_status()
         data = resp.json()
         return (data.get("response") or "").strip()
     except requests.RequestException as exc:
-        # Bazı HTTPError durumlarında response yok olabilir.
         status = getattr(getattr(exc, "response", None), "status_code", None)
-        if status and status >= 500:
+        if status and (status in (400, 422) or status >= 500):
             _image_state["disabled"] = True
-            logger.warning(
-                "Ollama görsel analizi 500 hatası verdi; görsel analiz kapatıldı."
-            )
+            logger.info("Ollama görsel analizi desteklenmiyor, devre dışı bırakıldı.")
             return ""
         logger.warning("Ollama görsel analizi başarısız: %s", exc)
         return ""
