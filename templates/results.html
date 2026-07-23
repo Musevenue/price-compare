@@ -16,13 +16,36 @@
             </a>
             <form action="{{ url_for('search') }}" method="post" class="d-flex" role="search">
                 <input class="form-control me-2" type="search" name="query" value="{{ query }}" placeholder="Yeni arama" required>
+                <input type="hidden" name="limit" value="{{ user_limit or 5 }}">
+                {% if min_price_dkk is not none %}
+                <input type="hidden" name="min_price" value="{{ min_price_dkk }}">
+                {% endif %}
+                {% if max_price_dkk is not none %}
+                <input type="hidden" name="max_price" value="{{ max_price_dkk }}">
+                {% endif %}
                 <button class="btn btn-outline-light" type="submit"><i class="bi bi-search"></i></button>
             </form>
         </div>
     </nav>
 
     <div class="container py-4">
-        <h2 class="mb-4">"<span class="text-primary">{{ query }}</span>" için sonuçlar</h2>
+        <h2 class="mb-2">"<span class="text-primary">{{ query }}</span>" için sonuçlar</h2>
+
+        <div class="mb-4 d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge text-bg-dark">Gösterim limiti: {{ user_limit }} / platform</span>
+            {% if filters_active %}
+                {% if min_price_dkk is not none and max_price_dkk is not none %}
+                <span class="badge text-bg-info">Fiyat filtresi: {{ "%.2f"|format(min_price_dkk) }} - {{ "%.2f"|format(max_price_dkk) }} DKK</span>
+                {% elif min_price_dkk is not none %}
+                <span class="badge text-bg-info">Fiyat filtresi: min {{ "%.2f"|format(min_price_dkk) }} DKK</span>
+                {% elif max_price_dkk is not none %}
+                <span class="badge text-bg-info">Fiyat filtresi: max {{ "%.2f"|format(max_price_dkk) }} DKK</span>
+                {% endif %}
+            {% else %}
+                <span class="badge text-bg-secondary">Fiyat filtresi yok</span>
+            {% endif %}
+            <span class="badge text-bg-light border">Ollama modeli: {{ ollama_model }}</span>
+        </div>
 
         <!-- Karşılaştırma özeti -->
         <div class="card shadow-sm mb-4">
@@ -106,6 +129,7 @@
                         {% endif %}
                         <div class="card-body d-flex flex-column">
                             <h6 class="card-title">{{ item.title[:90] }}</h6>
+
                             <div class="mb-2">
                                 {% if item.price_dkk is not none %}
                                     <span class="price-tag">{{ "%.2f"|format(item.price_dkk) }} DKK</span>
@@ -116,9 +140,32 @@
                                     <span class="text-muted">Fiyat belirtilmemiş</span>
                                 {% endif %}
                             </div>
-                            {% if item.summary %}
-                            <p class="card-text summary-text"><i class="bi bi-robot text-primary"></i> <small class="text-muted">{{ ollama_model }}:</small> {{ item.summary }}</p>
+
+                            <div class="mb-2">
+                                <span class="badge text-bg-light border">Alaka skoru: {{ item.relevance_score or 0 }}</span>
+                            </div>
+
+                            {% if not item.title_relevant %}
+                            <div class="alert alert-warning py-1 px-2 small mb-2">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Başlık arama terimiyle tam uyuşmuyor (açıklama eşleşmesine göre tutuldu).
+                            </div>
                             {% endif %}
+
+                            {% if item.summary %}
+                            <p class="card-text summary-text">
+                                <i class="bi bi-robot text-primary"></i>
+                                <small class="text-muted">Metin özeti:</small> {{ item.summary }}
+                            </p>
+                            {% endif %}
+
+                            {% if item.image_analysis %}
+                            <p class="card-text summary-text border-start border-3 border-info">
+                                <i class="bi bi-search text-info"></i>
+                                <small class="text-muted">Resim analizi:</small> {{ item.image_analysis }}
+                            </p>
+                            {% endif %}
+
                             <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mt-auto">
                                 İlana Git <i class="bi bi-box-arrow-up-right"></i>
                             </a>
